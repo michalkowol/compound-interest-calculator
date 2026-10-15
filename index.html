@@ -283,10 +283,10 @@
       <h2 style="margin-bottom: 18px;" x-text="t('parameters')"></h2>
 
       <div class="accounts" style="margin-bottom: 28px;">
-        <template x-for="(account, index) in [ike, partner]" :key="account.id">
+        <template x-for="(account, index) in taxFreeAccounts" :key="account.id">
           <div class="account">
             <h3 x-text="t(account.titleKey)"></h3>
-            <div class="hint" style="margin-top: 0;" x-text="t(account.flatTax ? 'ikeHintFlat' : 'ikeHintFree')"></div>
+            <div class="hint" style="margin-top: 0;" x-text="t(account.flatTax ? 'ikzeHint' : 'ikeHintFree')"></div>
             <div class="fields">
               <div>
                 <label class="eyebrow" :for="`${account.id}-initial`" x-text="t('initial')"></label>
@@ -303,15 +303,11 @@
               <div class="hint" x-show="periods !== 1" x-text="t('effective', { rate: percent(effectiveRate(account.rate)) })"></div>
             </div>
             <label class="check" style="margin-top: 14px;">
-              <input type="checkbox" x-model="account.flatTax">
-              <span x-text="t('flatTax')"></span>
+              <input type="checkbox" x-model="account.max" @change="if (account.max) account.monthly = limitOf(account) / 12">
+              <span x-text="t('maxLimit', { limit: money(limitOf(account)), year: IKE_LIMIT_YEAR })"></span>
             </label>
-            <label class="check" style="margin-top: 10px;">
-              <input type="checkbox" x-model="account.max" @change="if (account.max) account.monthly = IKE_LIMIT / 12">
-              <span x-text="t('maxLimit', { limit: money(IKE_LIMIT), year: IKE_LIMIT_YEAR })"></span>
-            </label>
-            <div class="hint warning" x-show="!account.max && num(account.monthly) * 12 > IKE_LIMIT"
-                 x-text="t('overLimit', { amount: money(num(account.monthly) * 12), year: IKE_LIMIT_YEAR, limit: money(IKE_LIMIT) })"></div>
+            <div class="hint warning" x-show="!account.max && num(account.monthly) * 12 > limitOf(account)"
+                 x-text="t('overLimit', { amount: money(num(account.monthly) * 12), name: t(account.titleKey), year: IKE_LIMIT_YEAR, limit: money(limitOf(account)) })"></div>
             <template x-if="index === 0">
               <div>
                 <div x-show="anyIkeMax" style="margin-top: 14px; max-width: calc(50% - 7px);">
@@ -323,13 +319,14 @@
                   <summary style="cursor: pointer; color: var(--gray-500);" x-text="t('limitHistory')"></summary>
                   <table class="spec" style="margin-top: 8px; font-size: 13px;">
                     <thead>
-                      <tr><th x-text="t('year')"></th><th x-text="t('limit')"></th><th x-text="t('change')"></th></tr>
+                      <tr><th x-text="t('year')"></th><th>IKE</th><th>IKZE</th><th x-text="t('change')"></th></tr>
                     </thead>
                     <tbody>
                       <template x-for="entry in ikeHistory" :key="entry.year">
                         <tr>
                           <td class="mono" x-text="entry.year"></td>
                           <td class="mono" x-text="money(entry.limit)"></td>
+                          <td class="mono" x-text="money(entry.limit * IKZE_LIMIT_FACTOR)"></td>
                           <td class="mono" x-text="entry.change === null ? '' : '+' + percent(entry.change)"></td>
                         </tr>
                       </template>
@@ -430,7 +427,7 @@
           <div class="value positive" x-text="money(result.profit)"></div>
         </div>
         <div class="stat" x-show="anyTax">
-          <div class="eyebrow" x-text="t(anyIkeFlatTax ? 'tax' : 'belka')"></div>
+          <div class="eyebrow" x-text="t(hasValue(ikze) ? 'tax' : 'belka')"></div>
           <div class="value accent" x-text="money(result.tax)"></div>
         </div>
         <div class="stat" x-show="inflationEnabled">
@@ -441,12 +438,16 @@
 
       <div class="stats" style="margin-bottom: 28px;">
         <div class="stat">
-          <div class="eyebrow" x-text="t(ike.flatTax ? 'ikeAfterTax' : 'ike')"></div>
+          <div class="eyebrow" x-text="t('ike')"></div>
           <div class="value small" x-text="money(result.ikes[0])"></div>
         </div>
-        <div class="stat" x-show="hasPartner">
-          <div class="eyebrow" x-text="t(partner.flatTax ? 'partnerIkeAfterTax' : 'partnerIke')"></div>
-          <div class="value small" x-text="money(result.ikes[1] ?? 0)"></div>
+        <div class="stat" x-show="hasValue(partner)">
+          <div class="eyebrow" x-text="t('partnerIke')"></div>
+          <div class="value small" x-text="money(result.ikes[1])"></div>
+        </div>
+        <div class="stat" x-show="hasValue(ikze)">
+          <div class="eyebrow" x-text="t('ikzeAfterTax')"></div>
+          <div class="value small" x-text="money(result.ikes[2])"></div>
         </div>
         <div class="stat">
           <div class="eyebrow" x-text="t(taxMode === 'none' ? 'brokerage' : 'brokerageAfterTax')"></div>
@@ -470,18 +471,14 @@
       </div>
 
       <p x-show="anyTax" style="margin-top: 20px; color: var(--gray-500);">
-        <span x-show="anyIkeFlatTax" x-text="t('noteFlat')"></span>
+        <span x-show="hasValue(ikze)" x-text="t('noteFlat')"></span>
         <span x-show="taxMode === 'capitalization'" x-text="t('noteCap')"></span>
         <span x-show="taxMode === 'end'" x-text="t('noteEnd')"></span>
         <span x-show="taxMode !== 'none'" x-text="t('noteSaving')"></span>
       </p>
       <p x-show="inflationEnabled" style="margin-top: 12px; color: var(--gray-500);">
         <span x-text="t('noteReal', { inflation: percent(num(inflation)) })"></span>
-        <span x-text="t('realRates', {
-          ike: percent(realRate(ike.rate)),
-          partner: hasPartner ? t('realRatePartner', { rate: percent(realRate(partner.rate)) }) : '',
-          brokerage: percent(realRate(brokerage.rate))
-        })"></span>
+        <span x-text="t('realRates', { list: realRatesList })"></span>
       </p>
     </div>
   </section>
@@ -498,7 +495,8 @@
               <th x-text="t('contributed')"></th>
               <th x-show="anyIkeMax" x-text="t('ikeContribution')"></th>
               <th x-text="t('ike')"></th>
-              <th x-show="hasPartner" x-text="t('partnerIke')"></th>
+              <th x-show="hasValue(partner)" x-text="t('partnerIke')"></th>
+              <th x-show="hasValue(ikze)" x-text="t('ikze')"></th>
               <th x-text="t('brokerageShort')"></th>
               <th x-show="anyTax" x-text="t('tax')"></th>
               <th x-text="t('netProfit')"></th>
@@ -513,7 +511,8 @@
                 <td class="mono" x-text="money(row.contributed)"></td>
                 <td class="mono" x-show="anyIkeMax" x-text="money(row.ikeYearContribution)"></td>
                 <td class="mono" x-text="money(row.ikes[0])"></td>
-                <td class="mono" x-show="hasPartner" x-text="money(row.ikes[1] ?? 0)"></td>
+                <td class="mono" x-show="hasValue(partner)" x-text="money(row.ikes[1])"></td>
+                <td class="mono" x-show="hasValue(ikze)" x-text="money(row.ikes[2])"></td>
                 <td class="mono" x-text="money(row.brokerage)"></td>
                 <td class="mono" style="color: var(--clay);" x-show="anyTax" x-text="money(row.tax)"></td>
                 <td class="mono" style="color: var(--olive);" x-text="money(row.profit)"></td>
@@ -529,7 +528,9 @@
 
   <script>
     const BELKA = 0.19;
-    const IKE_FLAT_TAX = 0.10;
+    const IKZE_FLAT_TAX = 0.10;
+    // IKZE limit is 1.2x and IKE limit 3x the forecast average salary
+    const IKZE_LIMIT_FACTOR = 0.4;
     const IKE_LIMITS = {
       2015: 11877, 2016: 12348, 2017: 12744, 2018: 13293, 2019: 13824, 2020: 15681,
       2021: 15777, 2022: 17766, 2023: 20805, 2024: 23472, 2025: 26019, 2026: 28260
@@ -547,25 +548,24 @@
         pageTitle: 'Kalkulator procentu składanego',
         eyebrow: 'Inwestycje',
         title: 'Kalkulator procentu składanego',
-        intro: 'Sprawdź, ile urośnie Twój kapitał na IKE i rachunku maklerskim przy regularnych dopłatach. Dopłaty trafiają na konto na początku każdego miesiąca. Możesz uwzględnić podatek Belki oraz inflację, żeby zobaczyć wynik w dzisiejszych złotówkach.',
+        intro: 'Sprawdź, ile urośnie Twój kapitał na IKE, IKZE i rachunku maklerskim przy regularnych dopłatach. Dopłaty trafiają na konto na początku każdego miesiąca. Możesz uwzględnić podatek Belki oraz inflację, żeby zobaczyć wynik w dzisiejszych złotówkach.',
         parameters: 'Parametry',
         ike: 'IKE',
         partnerIke: 'IKE partnera',
         brokerage: 'Rachunek maklerski',
-        ikeHintFlat: 'Ryczałt 10% od całej kwoty przy wypłacie',
+        ikze: 'IKZE',
+        ikzeHint: 'Ryczałt 10% od całej kwoty przy wypłacie po 65. roku życia',
         ikeHintFree: 'Bez podatku Belki przy wypłacie po 60. roku życia',
         initial: 'Saldo początkowe (zł)',
         monthly: 'Dopłata miesięczna (zł)',
         rate: 'Roczna stopa zwrotu (%)',
         effective: 'Efektywnie {rate} rocznie',
-        flatTax: 'Ryczałt 10% od całej zgromadzonej kwoty przy wypłacie',
         maxLimit: 'Wpłacaj co roku pełny limit ({limit} w {year})',
-        overLimit: 'Roczne dopłaty ({amount}) przekraczają limit IKE na {year} rok: {limit}.',
+        overLimit: 'Roczne dopłaty ({amount}) przekraczają limit {name} na {year} rok: {limit}.',
         limitGrowth: 'Roczny wzrost limitu (%)',
         limitGrowthHint: 'Historycznie średnio {rate} rocznie ({from}-{to})',
-        limitHistory: 'Historia limitów IKE',
+        limitHistory: 'Historia limitów IKE i IKZE',
         year: 'Rok',
-        limit: 'Limit',
         change: 'Zmiana',
         brokerageHint: 'Zysk opodatkowany podatkiem Belki (19%)',
         belka: 'Podatek Belki',
@@ -592,22 +592,20 @@
         netProfit: 'Zysk netto',
         tax: 'Podatek',
         realValue: 'Wartość realna',
-        ikeAfterTax: 'IKE po podatku',
-        partnerIkeAfterTax: 'IKE partnera po podatku',
+        ikzeAfterTax: 'IKZE po podatku',
         brokerageAfterTax: 'Maklerski po podatku',
-        ikeSaving: 'Oszczędność dzięki IKE',
+        ikeSaving: 'Oszczędność dzięki IKE i IKZE',
         contributions: 'Wpłaty',
-        noteFlat: 'Z IKE pobierany jest ryczałt 10% od całej zgromadzonej kwoty, łącznie z wpłatami, w momencie wypłaty.',
+        noteFlat: 'Z IKZE pobierany jest ryczałt 10% od całej zgromadzonej kwoty, łącznie z wpłatami, w momencie wypłaty.',
         noteCap: 'Podatek 19% jest pobierany z odsetek przy każdej kapitalizacji, więc pomniejszone odsetki procentują dalej.',
         noteEnd: 'Podatek 19% jest liczony od całego zysku na rachunku maklerskim w momencie sprzedaży na koniec okresu.',
-        noteSaving: 'Oszczędność dzięki IKE to różnica między saldem IKE a kwotą, którą te same wpłaty dałyby na rachunku maklerskim po podatku.',
+        noteSaving: 'Oszczędność dzięki IKE i IKZE to różnica między ich saldem po podatku a kwotą, którą te same wpłaty dałyby na rachunku maklerskim po podatku.',
         noteReal: 'Wartość realna to saldo po podatku przeliczone na dzisiejszą siłę nabywczą przy inflacji {inflation} rocznie.',
-        realRates: 'Realna stopa zwrotu przed podatkiem wynosi {ike} na IKE{partner} i {brokerage} na rachunku maklerskim.',
-        realRatePartner: ', {rate} na IKE partnera',
+        realRates: 'Realna stopa zwrotu przed podatkiem: {list}.',
         yearByYear: 'Rok po roku',
         endHint: 'Przy podatku na końcu kolumny pokazują wartość, gdybyś sprzedał wszystko w danym roku.',
         contributed: 'Wpłacono',
-        ikeContribution: 'Wpłata IKE',
+        ikeContribution: 'Wpłaty IKE i IKZE',
         brokerageShort: 'Maklerskie',
         balance: 'Saldo',
         realBalance: 'Saldo realne',
@@ -618,25 +616,24 @@
         pageTitle: 'Compound interest calculator',
         eyebrow: 'Investments',
         title: 'Compound interest calculator',
-        intro: 'See how much your savings grow on IKE and a brokerage account with regular contributions. Contributions are added at the start of each month. You can include Belka tax and inflation to see the result in today\'s money.',
+        intro: 'See how much your savings grow on IKE, IKZE and a brokerage account with regular contributions. Contributions are added at the start of each month. You can include Belka tax and inflation to see the result in today\'s money.',
         parameters: 'Parameters',
         ike: 'IKE',
         partnerIke: 'Partner\'s IKE',
         brokerage: 'Brokerage account',
-        ikeHintFlat: '10% flat tax on the whole amount at withdrawal',
+        ikze: 'IKZE',
+        ikzeHint: '10% flat tax on the whole amount when withdrawn after age 65',
         ikeHintFree: 'No Belka tax when withdrawn after age 60',
         initial: 'Starting balance (PLN)',
         monthly: 'Monthly contribution (PLN)',
         rate: 'Annual rate of return (%)',
         effective: 'Effectively {rate} per year',
-        flatTax: '10% flat tax on the whole accumulated amount at withdrawal',
         maxLimit: 'Pay in the full limit every year ({limit} in {year})',
-        overLimit: 'Yearly contributions ({amount}) exceed the IKE limit for {year}: {limit}.',
+        overLimit: 'Yearly contributions ({amount}) exceed the {name} limit for {year}: {limit}.',
         limitGrowth: 'Annual limit growth (%)',
         limitGrowthHint: 'Historical average {rate} per year ({from}-{to})',
-        limitHistory: 'IKE limit history',
+        limitHistory: 'IKE and IKZE limit history',
         year: 'Year',
-        limit: 'Limit',
         change: 'Change',
         brokerageHint: 'Gains subject to Belka tax (19%)',
         belka: 'Belka tax',
@@ -663,22 +660,20 @@
         netProfit: 'Net profit',
         tax: 'Tax',
         realValue: 'Real value',
-        ikeAfterTax: 'IKE after tax',
-        partnerIkeAfterTax: 'Partner\'s IKE after tax',
+        ikzeAfterTax: 'IKZE after tax',
         brokerageAfterTax: 'Brokerage after tax',
-        ikeSaving: 'Saved thanks to IKE',
+        ikeSaving: 'Saved thanks to IKE and IKZE',
         contributions: 'Contributions',
-        noteFlat: 'A 10% flat tax is taken from IKE on the whole accumulated amount, contributions included, at withdrawal.',
+        noteFlat: 'A 10% flat tax is taken from IKZE on the whole accumulated amount, contributions included, at withdrawal.',
         noteCap: 'The 19% tax is taken from interest at each compounding, so only the reduced interest keeps compounding.',
         noteEnd: 'The 19% tax is charged on the whole gain on the brokerage account when you sell at the end of the period.',
-        noteSaving: 'Saved thanks to IKE is the difference between the IKE balance and what the same contributions would give on a brokerage account after tax.',
+        noteSaving: 'Saved thanks to IKE and IKZE is the difference between their after-tax balance and what the same contributions would give on a brokerage account after tax.',
         noteReal: 'Real value is the after-tax balance in today\'s purchasing power at {inflation} annual inflation.',
-        realRates: 'The real rate of return before tax is {ike} on IKE{partner} and {brokerage} on the brokerage account.',
-        realRatePartner: ', {rate} on the partner\'s IKE',
+        realRates: 'Real rate of return before tax: {list}.',
         yearByYear: 'Year by year',
         endHint: 'With tax at the end, the columns show the value if you sold everything in that year.',
         contributed: 'Contributed',
-        ikeContribution: 'IKE contribution',
+        ikeContribution: 'IKE and IKZE contributions',
         brokerageShort: 'Brokerage',
         balance: 'Balance',
         realBalance: 'Real balance',
@@ -743,7 +738,7 @@
       const belkaDue = account => taxOnEnd ? BELKA * Math.max(0, account.balance - account.contributed) : 0;
 
       const snapshot = year => {
-        const ikeNets = ikeAccounts.map(account => account.balance * (account.flatTax ? 1 - IKE_FLAT_TAX : 1));
+        const ikeNets = ikeAccounts.map(account => account.balance * (account.flatTax ? 1 - IKZE_FLAT_TAX : 1));
         const ikeTaxDue = sum(ikeAccounts.map(account => account.balance)) - sum(ikeNets);
         const shadowNets = ikeShadows.map(account => account.balance - belkaDue(account));
         const brokerageTaxDue = belkaDue(brokerageAccount);
@@ -808,6 +803,7 @@
     function calculator() {
       return {
         IKE_LIMIT,
+        IKZE_LIMIT_FACTOR,
         IKE_LIMIT_YEAR,
         IKE_HISTORY_FROM,
         IKE_LIMIT_GROWTH,
@@ -819,9 +815,10 @@
         })).reverse(),
         LANGUAGES,
         lang: detectLanguage(),
-        ike: { id: 'ike', titleKey: 'ike', initial: 0, monthly: 2000, rate: 7, max: false, flatTax: false },
-        partner: { id: 'partner-ike', titleKey: 'partnerIke', initial: 0, monthly: 0, rate: 7, max: false, flatTax: false },
-        brokerage: { initial: 10000, monthly: 500, rate: 7 },
+        ike: { id: 'ike', titleKey: 'ike', initial: 0, monthly: 2000, rate: 7, max: false, flatTax: false, limitFactor: 1 },
+        partner: { id: 'partner-ike', titleKey: 'partnerIke', initial: 0, monthly: 0, rate: 7, max: false, flatTax: false, limitFactor: 1 },
+        ikze: { id: 'ikze', titleKey: 'ikze', initial: 0, monthly: 0, rate: 7, max: false, flatTax: true, limitFactor: IKZE_LIMIT_FACTOR },
+        brokerage: { titleKey: 'brokerage', initial: 10000, monthly: 500, rate: 7 },
         periods: 1,
         years: 20,
         taxMode: 'none',
@@ -842,9 +839,9 @@
         get result() {
           const inflationOn = this.inflationEnabled;
           return simulate({
-            ikes: this.activeIkes.map(account => ({
+            ikes: this.taxFreeAccounts.map(account => ({
               initial: num(account.initial),
-              monthly: account.max ? IKE_LIMIT / 12 : num(account.monthly),
+              monthly: account.max ? this.limitOf(account) / 12 : num(account.monthly),
               rate: num(account.rate),
               max: account.max,
               flatTax: account.flatTax
@@ -859,24 +856,29 @@
           });
         },
 
-        get activeIkes() {
-          return [this.ike, this.partner];
+        get taxFreeAccounts() {
+          return [this.ike, this.partner, this.ikze];
         },
 
-        get hasPartner() {
-          return num(this.partner.initial) > 0 || num(this.partner.monthly) > 0 || this.partner.max;
+        hasValue(account) {
+          return num(account.initial) > 0 || num(account.monthly) > 0 || account.max;
+        },
+
+        limitOf(account) {
+          return IKE_LIMIT * account.limitFactor;
+        },
+
+        get realRatesList() {
+          const accounts = [this.ike, ...[this.partner, this.ikze].filter(account => this.hasValue(account)), this.brokerage];
+          return accounts.map(account => `${this.t(account.titleKey)} ${this.percent(this.realRate(account.rate))}`).join(', ');
         },
 
         get anyIkeMax() {
-          return this.activeIkes.some(account => account.max);
-        },
-
-        get anyIkeFlatTax() {
-          return this.activeIkes.some(account => account.flatTax);
+          return this.taxFreeAccounts.some(account => account.max);
         },
 
         get anyTax() {
-          return this.taxMode !== 'none' || this.anyIkeFlatTax;
+          return this.taxMode !== 'none' || this.hasValue(this.ikze);
         },
 
         effectiveRate(rate) {
