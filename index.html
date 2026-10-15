@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulator procentu składanego</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    :root {
+      --ivory:    #FAF9F5;
+      --slate:    #141413;
+      --clay:     #D97757;
+      --oat:      #E3DACC;
+      --olive:    #788C5D;
+      --gray-150: #F0EEE6;
+      --gray-300: #D1CFC5;
+      --gray-500: #87867F;
+      --gray-700: #3D3D3A;
+      --white:    #FFFFFF;
+
+      --serif: ui-serif, Georgia, 'Times New Roman', serif;
+      --sans:  system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --mono:  ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    [x-cloak] { display: none !important; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--ivory);
+      color: var(--gray-700);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 {
+      font-family: var(--serif);
+      font-weight: 500;
+      color: var(--slate);
+      letter-spacing: -0.01em;
+    }
+
+    h1 { font-size: 38px; line-height: 1.15; }
+    h2 { font-size: 24px; line-height: 1.2; }
+    h3 { font-size: 18px; line-height: 1.3; }
+
+    p { font-size: 15px; }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--gray-500);
+      margin-top: 6px;
+    }
+
+    .hint.warning { color: var(--clay); }
+
+    hr {
+      border: 0;
+      border-top: 1.5px solid var(--gray-300);
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      background: var(--oat);
+      color: var(--slate);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .field {
+      font-family: var(--sans);
+      font-size: 14px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--gray-300);
+      background: var(--white);
+      color: var(--slate);
+      width: 100%;
+    }
+
+    .field:focus {
+      outline: none;
+      border-color: var(--slate);
+    }
+
+    .field:disabled {
+      background: var(--gray-150);
+      color: var(--gray-500);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 18px;
+    }
+
+    .form-grid label.eyebrow {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .accounts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+
+    .account {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .account h3 { margin-bottom: 4px; }
+
+    .account .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .account label.eyebrow {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--slate);
+      cursor: pointer;
+    }
+
+    .check input { accent-color: var(--clay); width: 16px; height: 16px; flex-shrink: 0; }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .options .check small {
+      color: var(--gray-500);
+      font-size: 13px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 24px;
+    }
+
+    .stat .value {
+      font-family: var(--serif);
+      font-size: 26px;
+      color: var(--slate);
+      line-height: 1.2;
+      margin-top: 4px;
+    }
+
+    .stat .value.small { font-size: 20px; }
+    .stat .value.positive { color: var(--olive); }
+    .stat .value.accent { color: var(--clay); }
+
+    .split-bar {
+      display: flex;
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: var(--gray-150);
+    }
+
+    .split-bar .contributed { background: var(--slate); }
+    .split-bar .profit { background: var(--olive); }
+    .split-bar .tax { background: var(--clay); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .legend > span::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      margin-right: 6px;
+      vertical-align: -1px;
+      background: var(--dot);
+    }
+
+    table.spec {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    table.spec th, table.spec td {
+      text-align: right;
+      padding: 10px 14px;
+      border-bottom: 1.5px solid var(--gray-300);
+      white-space: nowrap;
+    }
+
+    table.spec th:first-child, table.spec td:first-child { text-align: left; }
+
+    table.spec th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gray-500);
+      font-weight: 600;
+    }
+
+    table.spec td.mono {
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .table-wrap { overflow-x: auto; }
+  </style>
+</head>
+<body x-data="calculator()" x-cloak>
+
+  <section style="padding: 56px 32px 32px;">
+    <div style="max-width: 860px; margin: 0 auto;">
+      <div class="eyebrow" style="margin-bottom: 12px;">Inwestycje</div>
+      <h1 style="margin-bottom: 16px;">Kalkulator procentu składanego</h1>
+      <p style="max-width: 60ch;">
+        Sprawdź, ile urośnie Twój kapitał na IKE i rachunku maklerskim przy regularnych dopłatach. Dopłaty trafiają na konto na początku każdego miesiąca. Możesz uwzględnić podatek Belki oraz inflację, żeby zobaczyć wynik w dzisiejszych złotówkach.
+      </p>
+    </div>
+  </section>
+
+  <section style="padding: 16px 32px;">
+    <div style="max-width: 860px; margin: 0 auto;">
+      <h2 style="margin-bottom: 18px;">Parametry</h2>
+
+      <div class="accounts" style="margin-bottom: 28px;">
+        <template x-for="(account, index) in [ike, partner]" :key="account.id">
+          <div class="account">
+            <h3 x-text="account.title"></h3>
+            <div class="hint" style="margin-top: 0;" x-text="account.flatTax ? 'Ryczałt 10% od całej kwoty przy wypłacie' : 'Bez podatku Belki przy wypłacie po 60. roku życia'"></div>
+            <div class="fields">
+              <div>
+                <label class="eyebrow" :for="`${account.id}-initial`">Saldo początkowe (zł)</label>
+                <input class="field" :id="`${account.id}-initial`" type="text" inputmode="decimal" x-model="account.initial">
+              </div>
+              <div>
+                <label class="eyebrow" :for="`${account.id}-monthly`">Dopłata miesięczna (zł)</label>
+                <input class="field" :id="`${account.id}-monthly`" type="text" inputmode="decimal" x-model="account.monthly" :disabled="account.max">
+              </div>
+            </div>
+            <div style="margin-top: 14px; max-width: calc(50% - 7px);">
+              <label class="eyebrow" :for="`${account.id}-rate`">Roczna stopa zwrotu (%)</label>
+              <input class="field" :id="`${account.id}-rate`" type="text" inputmode="decimal" x-model="account.rate">
+              <div class="hint" x-show="periods !== 1">Efektywnie <span x-text="percent(effectiveRate(account.rate))"></span> rocznie</div>
+            </div>
+            <label class="check" style="margin-top: 14px;">
+              <input type="checkbox" x-model="account.flatTax">
+              Ryczałt 10% od całej zgromadzonej kwoty przy wypłacie
+            </label>
+            <label class="check" style="margin-top: 10px;">
+              <input type="checkbox" x-model="account.max" @change="if (account.max) account.monthly = IKE_LIMIT / 12">
+              <span x-text="`Wpłacaj co roku pełny limit (${money(IKE_LIMIT)} w ${IKE_LIMIT_YEAR})`"></span>
+            </label>
+            <div class="hint warning" x-show="!account.max && num(account.monthly) * 12 > IKE_LIMIT">
+              Roczne dopłaty (<span x-text="money(num(account.monthly) * 12)"></span>) przekraczają limit IKE na <span x-text="IKE_LIMIT_YEAR"></span> rok: <span x-text="money(IKE_LIMIT)"></span>.
+            </div>
+            <template x-if="index === 0">
+              <div>
+                <div x-show="anyIkeMax" style="margin-top: 14px; max-width: calc(50% - 7px);">
+                  <label class="eyebrow" for="ike-limit-growth">Roczny wzrost limitu (%)</label>
+                  <input class="field" id="ike-limit-growth" type="text" inputmode="decimal" x-model="ikeLimitGrowth">
+                  <div class="hint">
+                    Historycznie średnio <span x-text="percent(IKE_LIMIT_GROWTH)"></span> rocznie (<span x-text="IKE_HISTORY_FROM"></span>-<span x-text="IKE_LIMIT_YEAR"></span>)
+                  </div>
+                </div>
+                <details x-show="anyIkeMax" style="margin-top: 12px; font-size: 13px;">
+                  <summary style="cursor: pointer; color: var(--gray-500);">Historia limitów IKE</summary>
+                  <table class="spec" style="margin-top: 8px; font-size: 13px;">
+                    <thead>
+                      <tr><th>Rok</th><th>Limit</th><th>Zmiana</th></tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="entry in ikeHistory" :key="entry.year">
+                        <tr>
+                          <td class="mono" x-text="entry.year"></td>
+                          <td class="mono" x-text="money(entry.limit)"></td>
+                          <td class="mono" x-text="entry.change === null ? '' : '+' + percent(entry.change)"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </details>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <div class="account">
+          <h3>Rachunek maklerski</h3>
+          <div class="hint" style="margin-top: 0;">Zysk opodatkowany podatkiem Belki (19%)</div>
+          <div class="fields">
+            <div>
+              <label class="eyebrow" for="brokerage-initial">Saldo początkowe (zł)</label>
+              <input class="field" id="brokerage-initial" type="text" inputmode="decimal" x-model="brokerage.initial">
+            </div>
+            <div>
+              <label class="eyebrow" for="brokerage-monthly">Dopłata miesięczna (zł)</label>
+              <input class="field" id="brokerage-monthly" type="text" inputmode="decimal" x-model="brokerage.monthly">
+            </div>
+          </div>
+          <div style="margin-top: 14px; max-width: calc(50% - 7px);">
+            <label class="eyebrow" for="brokerage-rate">Roczna stopa zwrotu (%)</label>
+            <input class="field" id="brokerage-rate" type="text" inputmode="decimal" x-model="brokerage.rate">
+            <div class="hint" x-show="periods !== 1">Efektywnie <span x-text="percent(effectiveRate(brokerage.rate))"></span> rocznie</div>
+          </div>
+          <div class="eyebrow" style="margin: 18px 0 10px;">Podatek Belki</div>
+          <div class="options">
+            <label class="check">
+              <input type="radio" name="tax" value="none" x-model="taxMode">
+              Nie uwzględniaj
+            </label>
+            <label class="check">
+              <input type="radio" name="tax" value="capitalization" x-model="taxMode">
+              <span>Przy każdej kapitalizacji <small>lokaty, obligacje, konta oszczędnościowe</small></span>
+            </label>
+            <label class="check">
+              <input type="radio" name="tax" value="end" x-model="taxMode">
+              <span>Na końcu, przy sprzedaży <small>fundusze, akcje, ETF</small></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 14px;">Wspólne parametry</h3>
+
+      <div class="form-grid" style="margin-bottom: 8px;">
+        <div>
+          <label class="eyebrow" for="years">Horyzont (lata)</label>
+          <input class="field" id="years" type="text" inputmode="numeric" x-model="years">
+        </div>
+        <div>
+          <label class="eyebrow" for="periods">Kapitalizacja</label>
+          <select class="field" id="periods" x-model.number="periods">
+            <template x-for="option in compoundingOptions" :key="option.periods">
+              <option :value="option.periods" x-text="option.label" :selected="option.periods === periods"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="eyebrow" for="inflation">Roczna inflacja (%)</label>
+          <input class="field" id="inflation" type="text" inputmode="decimal" x-model="inflation" :disabled="!inflationEnabled">
+          <div class="options" style="margin-top: 10px;">
+            <label class="check">
+              <input type="checkbox" x-model="inflationEnabled">
+              Uwzględnij inflację
+            </label>
+            <label class="check" :style="!inflationEnabled && 'opacity: 0.5; cursor: default;'">
+              <input type="checkbox" x-model="indexContributions" :disabled="!inflationEnabled">
+              Indeksuj dopłaty o inflację co rok
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr style="margin: 40px 32px;">
+
+  <section style="padding: 0 32px;">
+    <div style="max-width: 860px; margin: 0 auto;">
+      <h2 style="margin-bottom: 18px;">
+        Wynik po <span x-text="yearsLabel(result.years)"></span>
+      </h2>
+
+      <div class="stats" style="margin-bottom: 28px;">
+        <div class="stat">
+          <div class="eyebrow" x-text="anyTax ? 'Saldo po podatku' : 'Saldo końcowe'"></div>
+          <div class="value" x-text="money(result.net)"></div>
+        </div>
+        <div class="stat">
+          <div class="eyebrow">Wpłacono łącznie</div>
+          <div class="value" x-text="money(result.contributed)"></div>
+        </div>
+        <div class="stat">
+          <div class="eyebrow">Zysk netto</div>
+          <div class="value positive" x-text="money(result.profit)"></div>
+        </div>
+        <div class="stat" x-show="anyTax">
+          <div class="eyebrow" x-text="anyIkeFlatTax ? 'Podatek' : 'Podatek Belki'"></div>
+          <div class="value accent" x-text="money(result.tax)"></div>
+        </div>
+        <div class="stat" x-show="inflationEnabled">
+          <div class="eyebrow">Wartość realna</div>
+          <div class="value accent" x-text="money(result.real)"></div>
+        </div>
+      </div>
+
+      <div class="stats" style="margin-bottom: 28px;">
+        <div class="stat">
+          <div class="eyebrow" x-text="ike.flatTax ? 'IKE po podatku' : 'IKE'"></div>
+          <div class="value small" x-text="money(result.ikes[0])"></div>
+        </div>
+        <div class="stat" x-show="hasPartner">
+          <div class="eyebrow" x-text="partner.flatTax ? 'IKE partnera po podatku' : 'IKE partnera'"></div>
+          <div class="value small" x-text="money(result.ikes[1] ?? 0)"></div>
+        </div>
+        <div class="stat">
+          <div class="eyebrow" x-text="taxMode === 'none' ? 'Rachunek maklerski' : 'Maklerski po podatku'"></div>
+          <div class="value small" x-text="money(result.brokerage)"></div>
+        </div>
+        <div class="stat" x-show="taxMode !== 'none'">
+          <div class="eyebrow">Oszczędność dzięki IKE</div>
+          <div class="value small positive" x-text="money(result.ikeTaxSaved)"></div>
+        </div>
+      </div>
+
+      <div class="split-bar">
+        <div class="contributed" :style="`width: ${result.shares.contributed}%`"></div>
+        <div class="profit" :style="`width: ${result.shares.profit}%`"></div>
+        <div class="tax" :style="`width: ${result.shares.tax}%`"></div>
+      </div>
+      <div class="legend">
+        <span style="--dot: var(--slate);">Wpłaty <span class="tag" x-text="percent(result.shares.contributed)"></span></span>
+        <span style="--dot: var(--olive);">Zysk netto <span class="tag" x-text="percent(result.shares.profit)"></span></span>
+        <span style="--dot: var(--clay);" x-show="anyTax">Podatek <span class="tag" x-text="percent(result.shares.tax)"></span></span>
+      </div>
+
+      <p x-show="anyTax" style="margin-top: 20px; color: var(--gray-500);">
+        <span x-show="anyIkeFlatTax">Z IKE pobierany jest ryczałt 10% od całej zgromadzonej kwoty, łącznie z wpłatami, w momencie wypłaty.</span>
+        <span x-show="taxMode === 'capitalization'">Podatek 19% jest pobierany z odsetek przy każdej kapitalizacji, więc pomniejszone odsetki procentują dalej.</span>
+        <span x-show="taxMode === 'end'">Podatek 19% jest liczony od całego zysku na rachunku maklerskim w momencie sprzedaży na koniec okresu.</span>
+        <span x-show="taxMode !== 'none'">Oszczędność dzięki IKE to różnica między saldem IKE a kwotą, którą te same wpłaty dałyby na rachunku maklerskim po podatku.</span>
+      </p>
+      <p x-show="inflationEnabled" style="margin-top: 12px; color: var(--gray-500);">
+        Wartość realna to saldo po podatku przeliczone na dzisiejszą siłę nabywczą przy inflacji <span x-text="percent(num(inflation))"></span> rocznie. Realna stopa zwrotu przed podatkiem wynosi <span x-text="percent(realRate(ike.rate))"></span> na IKE<span x-show="hasPartner">, <span x-text="percent(realRate(partner.rate))"></span> na IKE partnera</span> i <span x-text="percent(realRate(brokerage.rate))"></span> na rachunku maklerskim.
+      </p>
+    </div>
+  </section>
+
+  <section style="padding: 40px 32px 96px;">
+    <div style="max-width: 860px; margin: 0 auto;">
+      <h2 style="margin-bottom: 6px;">Rok po roku</h2>
+      <p class="hint" style="margin-bottom: 18px;" x-show="taxMode === 'end'">Przy podatku na końcu kolumny pokazują wartość, gdybyś sprzedał wszystko w danym roku.</p>
+      <div class="table-wrap">
+        <table class="spec">
+          <thead>
+            <tr>
+              <th>Rok</th>
+              <th>Wpłacono</th>
+              <th x-show="anyIkeMax">Wpłata IKE</th>
+              <th>IKE</th>
+              <th x-show="hasPartner">IKE partnera</th>
+              <th>Maklerskie</th>
+              <th x-show="anyTax">Podatek</th>
+              <th>Zysk netto</th>
+              <th>Saldo</th>
+              <th x-show="inflationEnabled">Saldo realne</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in result.rows" :key="row.year">
+              <tr>
+                <td class="mono" x-text="row.year"></td>
+                <td class="mono" x-text="money(row.contributed)"></td>
+                <td class="mono" x-show="anyIkeMax" x-text="money(row.ikeYearContribution)"></td>
+                <td class="mono" x-text="money(row.ikes[0])"></td>
+                <td class="mono" x-show="hasPartner" x-text="money(row.ikes[1] ?? 0)"></td>
+                <td class="mono" x-text="money(row.brokerage)"></td>
+                <td class="mono" style="color: var(--clay);" x-show="anyTax" x-text="money(row.tax)"></td>
+                <td class="mono" style="color: var(--olive);" x-text="money(row.profit)"></td>
+                <td class="mono" style="color: var(--slate);" x-text="money(row.net)"></td>
+                <td class="mono" style="color: var(--clay);" x-show="inflationEnabled" x-text="money(row.real)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const BELKA = 0.19;
+    const IKE_FLAT_TAX = 0.10;
+    const IKE_LIMITS = {
+      2015: 11877, 2016: 12348, 2017: 12744, 2018: 13293, 2019: 13824, 2020: 15681,
+      2021: 15777, 2022: 17766, 2023: 20805, 2024: 23472, 2025: 26019, 2026: 28260
+    };
+    const IKE_HISTORY_YEARS = Object.keys(IKE_LIMITS).map(Number);
+    const IKE_HISTORY_FROM = IKE_HISTORY_YEARS[0];
+    const IKE_LIMIT_YEAR = IKE_HISTORY_YEARS[IKE_HISTORY_YEARS.length - 1];
+    const IKE_LIMIT = IKE_LIMITS[IKE_LIMIT_YEAR];
+    const IKE_LIMIT_GROWTH = (Math.pow(IKE_LIMIT / IKE_LIMITS[IKE_HISTORY_FROM], 1 / (IKE_LIMIT_YEAR - IKE_HISTORY_FROM)) - 1) * 100;
+
+    const moneyFormat = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 });
+    const percentFormat = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 });
+
+    function num(value) {
+      const parsed = typeof value === 'number' ? value : Number(String(value).replace(/\s/g, '').replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function monthlyFactor(rate, periods) {
+      return Math.pow(1 + rate / 100 / periods, periods / 12);
+    }
+
+    function sum(values) {
+      return values.reduce((total, value) => total + value, 0);
+    }
+
+    function simulate({ ikes, brokerage, periods, years, inflation, indexContributions, taxMode, limitGrowth }) {
+      const months = Math.max(0, Math.round(years)) * 12;
+      const yearlyInflation = 1 + inflation / 100;
+      const taxOnCapitalization = taxMode === 'capitalization';
+      const taxOnEnd = taxMode === 'end';
+
+      const createAccount = (params, taxed) => ({
+        ...params,
+        balance: params.initial,
+        contributed: params.initial,
+        yearContribution: 0,
+        taxPaid: 0,
+        taxed,
+        factor: monthlyFactor(taxed ? params.rate * (1 - BELKA) : params.rate, periods)
+      });
+
+      const ikeAccounts = ikes.map(params => createAccount(params, false));
+      // shadows of the IKE money as if it sat on a taxed brokerage account
+      const ikeShadows = ikes.map(params => createAccount({ ...params, flatTax: false }, taxOnCapitalization));
+      const brokerageAccount = createAccount(brokerage, taxOnCapitalization);
+      const allAccounts = [...ikeAccounts, ...ikeShadows, brokerageAccount];
+
+      const belkaDue = account => taxOnEnd ? BELKA * Math.max(0, account.balance - account.contributed) : 0;
+
+      const snapshot = year => {
+        const ikeNets = ikeAccounts.map(account => account.balance * (account.flatTax ? 1 - IKE_FLAT_TAX : 1));
+        const ikeTaxDue = sum(ikeAccounts.map(account => account.balance)) - sum(ikeNets);
+        const shadowNets = ikeShadows.map(account => account.balance - belkaDue(account));
+        const brokerageTaxDue = belkaDue(brokerageAccount);
+        const brokerageNet = brokerageAccount.balance - brokerageTaxDue;
+        const net = sum(ikeNets) + brokerageNet;
+        const contributed = sum(ikeAccounts.map(account => account.contributed)) + brokerageAccount.contributed;
+        return {
+          year,
+          contributed,
+          ikes: ikeNets,
+          ikeYearContribution: sum(ikeAccounts.map(account => account.yearContribution)),
+          brokerage: brokerageNet,
+          tax: brokerageAccount.taxPaid + brokerageTaxDue + ikeTaxDue,
+          profit: net - contributed,
+          net,
+          real: net / Math.pow(yearlyInflation, year),
+          ikeTaxSaved: sum(ikeNets) - sum(shadowNets)
+        };
+      };
+
+      const initial = snapshot(0);
+      const rows = [];
+
+      for (let month = 1; month <= months; month++) {
+        const yearIndex = Math.floor((month - 1) / 12);
+        const indexation = indexContributions ? Math.pow(yearlyInflation, yearIndex) : 1;
+        const limitIndexation = Math.pow(1 + limitGrowth / 100, yearIndex);
+
+        for (const account of allAccounts) {
+          const contribution = account.monthly * (account.max ? limitIndexation : indexation);
+          account.yearContribution = (month % 12 === 1 ? 0 : account.yearContribution) + contribution;
+          account.balance += contribution;
+          account.contributed += contribution;
+          const interest = account.balance * (account.factor - 1);
+          if (account.taxed) {
+            account.taxPaid += interest * BELKA / (1 - BELKA);
+          }
+          account.balance += interest;
+        }
+
+        if (month % 12 === 0) {
+          rows.push(snapshot(month / 12));
+        }
+      }
+
+      const last = rows[rows.length - 1] ?? initial;
+      const gross = last.net + last.tax;
+      const share = value => gross > 0 ? Math.min(100, Math.max(0, value / gross * 100)) : 0;
+
+      return {
+        years: rows.length,
+        rows,
+        ...last,
+        shares: {
+          contributed: share(last.contributed),
+          profit: share(Math.max(0, last.profit)),
+          tax: share(last.tax)
+        }
+      };
+    }
+
+    function calculator() {
+      return {
+        IKE_LIMIT,
+        IKE_LIMIT_YEAR,
+        IKE_HISTORY_FROM,
+        IKE_LIMIT_GROWTH,
+        ikeLimitGrowth: Math.round(IKE_LIMIT_GROWTH * 10) / 10,
+        ikeHistory: IKE_HISTORY_YEARS.map((year, i) => ({
+          year,
+          limit: IKE_LIMITS[year],
+          change: i === 0 ? null : (IKE_LIMITS[year] / IKE_LIMITS[IKE_HISTORY_YEARS[i - 1]] - 1) * 100
+        })).reverse(),
+        ike: { id: 'ike', title: 'IKE', initial: 0, monthly: 2000, rate: 7, max: false, flatTax: false },
+        partner: { id: 'partner-ike', title: 'IKE partnera', initial: 0, monthly: 0, rate: 7, max: false, flatTax: false },
+        brokerage: { initial: 10000, monthly: 500, rate: 7 },
+        periods: 1,
+        years: 20,
+        taxMode: 'none',
+        inflationEnabled: false,
+        inflation: 3.5,
+        indexContributions: false,
+
+        compoundingOptions: [
+          { periods: 365, label: 'Dzienna' },
+          { periods: 12, label: 'Miesięczna' },
+          { periods: 4, label: 'Kwartalna' },
+          { periods: 2, label: 'Półroczna' },
+          { periods: 1, label: 'Roczna' }
+        ],
+
+        num,
+
+        get result() {
+          const inflationOn = this.inflationEnabled;
+          return simulate({
+            ikes: this.activeIkes.map(account => ({
+              initial: num(account.initial),
+              monthly: account.max ? IKE_LIMIT / 12 : num(account.monthly),
+              rate: num(account.rate),
+              max: account.max,
+              flatTax: account.flatTax
+            })),
+            brokerage: { initial: num(this.brokerage.initial), monthly: num(this.brokerage.monthly), rate: num(this.brokerage.rate), max: false, flatTax: false },
+            periods: num(this.periods) || 1,
+            years: Math.min(100, num(this.years)),
+            inflation: inflationOn ? num(this.inflation) : 0,
+            indexContributions: inflationOn && this.indexContributions,
+            taxMode: this.taxMode,
+            limitGrowth: num(this.ikeLimitGrowth)
+          });
+        },
+
+        get activeIkes() {
+          return [this.ike, this.partner];
+        },
+
+        get hasPartner() {
+          return num(this.partner.initial) > 0 || num(this.partner.monthly) > 0 || this.partner.max;
+        },
+
+        get anyIkeMax() {
+          return this.activeIkes.some(account => account.max);
+        },
+
+        get anyIkeFlatTax() {
+          return this.activeIkes.some(account => account.flatTax);
+        },
+
+        get anyTax() {
+          return this.taxMode !== 'none' || this.anyIkeFlatTax;
+        },
+
+        effectiveRate(rate) {
+          const periods = num(this.periods) || 1;
+          return (Math.pow(1 + num(rate) / 100 / periods, periods) - 1) * 100;
+        },
+
+        realRate(rate) {
+          const nominal = 1 + this.effectiveRate(rate) / 100;
+          const inflation = 1 + num(this.inflation) / 100;
+          return (nominal / inflation - 1) * 100;
+        },
+
+        money(value) {
+          return moneyFormat.format(value);
+        },
+
+        percent(value) {
+          return percentFormat.format(value) + '%';
+        },
+
+        yearsLabel(n) {
+          if (n === 1) return '1 roku';
+          return `${n} latach`;
+        }
+      };
+    }
+  </script>
+
+</body>
+</html>
