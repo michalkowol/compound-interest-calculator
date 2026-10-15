@@ -237,69 +237,93 @@
     }
 
     .table-wrap { overflow-x: auto; }
+
+    .lang-switch {
+      display: inline-flex;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .lang-switch button {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      padding: 4px 12px;
+      border: 0;
+      background: var(--white);
+      color: var(--gray-700);
+      cursor: pointer;
+    }
+
+    .lang-switch button.active {
+      background: var(--slate);
+      color: var(--ivory);
+    }
   </style>
 </head>
-<body x-data="calculator()" x-cloak>
+<body x-data="calculator()" x-init="$watch('lang', value => applyLang(value)); applyLang(lang)" x-cloak>
 
   <section style="padding: 56px 32px 32px;">
     <div style="max-width: 860px; margin: 0 auto;">
-      <div class="eyebrow" style="margin-bottom: 12px;">Inwestycje</div>
-      <h1 style="margin-bottom: 16px;">Kalkulator procentu składanego</h1>
-      <p style="max-width: 60ch;">
-        Sprawdź, ile urośnie Twój kapitał na IKE i rachunku maklerskim przy regularnych dopłatach. Dopłaty trafiają na konto na początku każdego miesiąca. Możesz uwzględnić podatek Belki oraz inflację, żeby zobaczyć wynik w dzisiejszych złotówkach.
-      </p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div class="eyebrow" x-text="t('eyebrow')"></div>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <template x-for="code in LANGUAGES" :key="code">
+            <button type="button" :class="{ active: lang === code }" @click="lang = code" x-text="code.toUpperCase()"></button>
+          </template>
+        </div>
+      </div>
+      <h1 style="margin-bottom: 16px;" x-text="t('title')"></h1>
+      <p style="max-width: 60ch;" x-text="t('intro')"></p>
     </div>
   </section>
 
   <section style="padding: 16px 32px;">
     <div style="max-width: 860px; margin: 0 auto;">
-      <h2 style="margin-bottom: 18px;">Parametry</h2>
+      <h2 style="margin-bottom: 18px;" x-text="t('parameters')"></h2>
 
       <div class="accounts" style="margin-bottom: 28px;">
         <template x-for="(account, index) in [ike, partner]" :key="account.id">
           <div class="account">
-            <h3 x-text="account.title"></h3>
-            <div class="hint" style="margin-top: 0;" x-text="account.flatTax ? 'Ryczałt 10% od całej kwoty przy wypłacie' : 'Bez podatku Belki przy wypłacie po 60. roku życia'"></div>
+            <h3 x-text="t(account.titleKey)"></h3>
+            <div class="hint" style="margin-top: 0;" x-text="t(account.flatTax ? 'ikeHintFlat' : 'ikeHintFree')"></div>
             <div class="fields">
               <div>
-                <label class="eyebrow" :for="`${account.id}-initial`">Saldo początkowe (zł)</label>
+                <label class="eyebrow" :for="`${account.id}-initial`" x-text="t('initial')"></label>
                 <input class="field" :id="`${account.id}-initial`" type="text" inputmode="decimal" x-model="account.initial">
               </div>
               <div>
-                <label class="eyebrow" :for="`${account.id}-monthly`">Dopłata miesięczna (zł)</label>
+                <label class="eyebrow" :for="`${account.id}-monthly`" x-text="t('monthly')"></label>
                 <input class="field" :id="`${account.id}-monthly`" type="text" inputmode="decimal" x-model="account.monthly" :disabled="account.max">
               </div>
             </div>
             <div style="margin-top: 14px; max-width: calc(50% - 7px);">
-              <label class="eyebrow" :for="`${account.id}-rate`">Roczna stopa zwrotu (%)</label>
+              <label class="eyebrow" :for="`${account.id}-rate`" x-text="t('rate')"></label>
               <input class="field" :id="`${account.id}-rate`" type="text" inputmode="decimal" x-model="account.rate">
-              <div class="hint" x-show="periods !== 1">Efektywnie <span x-text="percent(effectiveRate(account.rate))"></span> rocznie</div>
+              <div class="hint" x-show="periods !== 1" x-text="t('effective', { rate: percent(effectiveRate(account.rate)) })"></div>
             </div>
             <label class="check" style="margin-top: 14px;">
               <input type="checkbox" x-model="account.flatTax">
-              Ryczałt 10% od całej zgromadzonej kwoty przy wypłacie
+              <span x-text="t('flatTax')"></span>
             </label>
             <label class="check" style="margin-top: 10px;">
               <input type="checkbox" x-model="account.max" @change="if (account.max) account.monthly = IKE_LIMIT / 12">
-              <span x-text="`Wpłacaj co roku pełny limit (${money(IKE_LIMIT)} w ${IKE_LIMIT_YEAR})`"></span>
+              <span x-text="t('maxLimit', { limit: money(IKE_LIMIT), year: IKE_LIMIT_YEAR })"></span>
             </label>
-            <div class="hint warning" x-show="!account.max && num(account.monthly) * 12 > IKE_LIMIT">
-              Roczne dopłaty (<span x-text="money(num(account.monthly) * 12)"></span>) przekraczają limit IKE na <span x-text="IKE_LIMIT_YEAR"></span> rok: <span x-text="money(IKE_LIMIT)"></span>.
-            </div>
+            <div class="hint warning" x-show="!account.max && num(account.monthly) * 12 > IKE_LIMIT"
+                 x-text="t('overLimit', { amount: money(num(account.monthly) * 12), year: IKE_LIMIT_YEAR, limit: money(IKE_LIMIT) })"></div>
             <template x-if="index === 0">
               <div>
                 <div x-show="anyIkeMax" style="margin-top: 14px; max-width: calc(50% - 7px);">
-                  <label class="eyebrow" for="ike-limit-growth">Roczny wzrost limitu (%)</label>
+                  <label class="eyebrow" for="ike-limit-growth" x-text="t('limitGrowth')"></label>
                   <input class="field" id="ike-limit-growth" type="text" inputmode="decimal" x-model="ikeLimitGrowth">
-                  <div class="hint">
-                    Historycznie średnio <span x-text="percent(IKE_LIMIT_GROWTH)"></span> rocznie (<span x-text="IKE_HISTORY_FROM"></span>-<span x-text="IKE_LIMIT_YEAR"></span>)
-                  </div>
+                  <div class="hint" x-text="t('limitGrowthHint', { rate: percent(IKE_LIMIT_GROWTH), from: IKE_HISTORY_FROM, to: IKE_LIMIT_YEAR })"></div>
                 </div>
                 <details x-show="anyIkeMax" style="margin-top: 12px; font-size: 13px;">
-                  <summary style="cursor: pointer; color: var(--gray-500);">Historia limitów IKE</summary>
+                  <summary style="cursor: pointer; color: var(--gray-500);" x-text="t('limitHistory')"></summary>
                   <table class="spec" style="margin-top: 8px; font-size: 13px;">
                     <thead>
-                      <tr><th>Rok</th><th>Limit</th><th>Zmiana</th></tr>
+                      <tr><th x-text="t('year')"></th><th x-text="t('limit')"></th><th x-text="t('change')"></th></tr>
                     </thead>
                     <tbody>
                       <template x-for="entry in ikeHistory" :key="entry.year">
@@ -318,67 +342,67 @@
         </template>
 
         <div class="account">
-          <h3>Rachunek maklerski</h3>
-          <div class="hint" style="margin-top: 0;">Zysk opodatkowany podatkiem Belki (19%)</div>
+          <h3 x-text="t('brokerage')"></h3>
+          <div class="hint" style="margin-top: 0;" x-text="t('brokerageHint')"></div>
           <div class="fields">
             <div>
-              <label class="eyebrow" for="brokerage-initial">Saldo początkowe (zł)</label>
+              <label class="eyebrow" for="brokerage-initial" x-text="t('initial')"></label>
               <input class="field" id="brokerage-initial" type="text" inputmode="decimal" x-model="brokerage.initial">
             </div>
             <div>
-              <label class="eyebrow" for="brokerage-monthly">Dopłata miesięczna (zł)</label>
+              <label class="eyebrow" for="brokerage-monthly" x-text="t('monthly')"></label>
               <input class="field" id="brokerage-monthly" type="text" inputmode="decimal" x-model="brokerage.monthly">
             </div>
           </div>
           <div style="margin-top: 14px; max-width: calc(50% - 7px);">
-            <label class="eyebrow" for="brokerage-rate">Roczna stopa zwrotu (%)</label>
+            <label class="eyebrow" for="brokerage-rate" x-text="t('rate')"></label>
             <input class="field" id="brokerage-rate" type="text" inputmode="decimal" x-model="brokerage.rate">
-            <div class="hint" x-show="periods !== 1">Efektywnie <span x-text="percent(effectiveRate(brokerage.rate))"></span> rocznie</div>
+            <div class="hint" x-show="periods !== 1" x-text="t('effective', { rate: percent(effectiveRate(brokerage.rate)) })"></div>
           </div>
-          <div class="eyebrow" style="margin: 18px 0 10px;">Podatek Belki</div>
+          <div class="eyebrow" style="margin: 18px 0 10px;" x-text="t('belka')"></div>
           <div class="options">
             <label class="check">
               <input type="radio" name="tax" value="none" x-model="taxMode">
-              Nie uwzględniaj
+              <span x-text="t('taxNone')"></span>
             </label>
             <label class="check">
               <input type="radio" name="tax" value="capitalization" x-model="taxMode">
-              <span>Przy każdej kapitalizacji <small>lokaty, obligacje, konta oszczędnościowe</small></span>
+              <span><span x-text="t('taxCap')"></span> <small x-text="t('taxCapHint')"></small></span>
             </label>
             <label class="check">
               <input type="radio" name="tax" value="end" x-model="taxMode">
-              <span>Na końcu, przy sprzedaży <small>fundusze, akcje, ETF</small></span>
+              <span><span x-text="t('taxEnd')"></span> <small x-text="t('taxEndHint')"></small></span>
             </label>
           </div>
         </div>
       </div>
 
-      <h3 style="margin-bottom: 14px;">Wspólne parametry</h3>
+      <h3 style="margin-bottom: 14px;" x-text="t('shared')"></h3>
 
       <div class="form-grid" style="margin-bottom: 8px;">
         <div>
-          <label class="eyebrow" for="years">Horyzont (lata)</label>
+          <label class="eyebrow" for="years" x-text="t('years')"></label>
           <input class="field" id="years" type="text" inputmode="numeric" x-model="years">
         </div>
         <div>
-          <label class="eyebrow" for="periods">Kapitalizacja</label>
+          <label class="eyebrow" for="periods" x-text="t('compounding')"></label>
           <select class="field" id="periods" x-model.number="periods">
             <template x-for="option in compoundingOptions" :key="option.periods">
-              <option :value="option.periods" x-text="option.label" :selected="option.periods === periods"></option>
+              <option :value="option.periods" x-text="t(option.labelKey)" :selected="option.periods === periods"></option>
             </template>
           </select>
         </div>
         <div>
-          <label class="eyebrow" for="inflation">Roczna inflacja (%)</label>
+          <label class="eyebrow" for="inflation" x-text="t('inflation')"></label>
           <input class="field" id="inflation" type="text" inputmode="decimal" x-model="inflation" :disabled="!inflationEnabled">
           <div class="options" style="margin-top: 10px;">
             <label class="check">
               <input type="checkbox" x-model="inflationEnabled">
-              Uwzględnij inflację
+              <span x-text="t('inflationEnabled')"></span>
             </label>
             <label class="check" :style="!inflationEnabled && 'opacity: 0.5; cursor: default;'">
               <input type="checkbox" x-model="indexContributions" :disabled="!inflationEnabled">
-              Indeksuj dopłaty o inflację co rok
+              <span x-text="t('indexContributions')"></span>
             </label>
           </div>
         </div>
@@ -390,48 +414,46 @@
 
   <section style="padding: 0 32px;">
     <div style="max-width: 860px; margin: 0 auto;">
-      <h2 style="margin-bottom: 18px;">
-        Wynik po <span x-text="yearsLabel(result.years)"></span>
-      </h2>
+      <h2 style="margin-bottom: 18px;" x-text="t('resultAfter', { years: yearsLabel(result.years) })"></h2>
 
       <div class="stats" style="margin-bottom: 28px;">
         <div class="stat">
-          <div class="eyebrow" x-text="anyTax ? 'Saldo po podatku' : 'Saldo końcowe'"></div>
+          <div class="eyebrow" x-text="t(anyTax ? 'balanceAfterTax' : 'finalBalance')"></div>
           <div class="value" x-text="money(result.net)"></div>
         </div>
         <div class="stat">
-          <div class="eyebrow">Wpłacono łącznie</div>
+          <div class="eyebrow" x-text="t('contributedTotal')"></div>
           <div class="value" x-text="money(result.contributed)"></div>
         </div>
         <div class="stat">
-          <div class="eyebrow">Zysk netto</div>
+          <div class="eyebrow" x-text="t('netProfit')"></div>
           <div class="value positive" x-text="money(result.profit)"></div>
         </div>
         <div class="stat" x-show="anyTax">
-          <div class="eyebrow" x-text="anyIkeFlatTax ? 'Podatek' : 'Podatek Belki'"></div>
+          <div class="eyebrow" x-text="t(anyIkeFlatTax ? 'tax' : 'belka')"></div>
           <div class="value accent" x-text="money(result.tax)"></div>
         </div>
         <div class="stat" x-show="inflationEnabled">
-          <div class="eyebrow">Wartość realna</div>
+          <div class="eyebrow" x-text="t('realValue')"></div>
           <div class="value accent" x-text="money(result.real)"></div>
         </div>
       </div>
 
       <div class="stats" style="margin-bottom: 28px;">
         <div class="stat">
-          <div class="eyebrow" x-text="ike.flatTax ? 'IKE po podatku' : 'IKE'"></div>
+          <div class="eyebrow" x-text="t(ike.flatTax ? 'ikeAfterTax' : 'ike')"></div>
           <div class="value small" x-text="money(result.ikes[0])"></div>
         </div>
         <div class="stat" x-show="hasPartner">
-          <div class="eyebrow" x-text="partner.flatTax ? 'IKE partnera po podatku' : 'IKE partnera'"></div>
+          <div class="eyebrow" x-text="t(partner.flatTax ? 'partnerIkeAfterTax' : 'partnerIke')"></div>
           <div class="value small" x-text="money(result.ikes[1] ?? 0)"></div>
         </div>
         <div class="stat">
-          <div class="eyebrow" x-text="taxMode === 'none' ? 'Rachunek maklerski' : 'Maklerski po podatku'"></div>
+          <div class="eyebrow" x-text="t(taxMode === 'none' ? 'brokerage' : 'brokerageAfterTax')"></div>
           <div class="value small" x-text="money(result.brokerage)"></div>
         </div>
         <div class="stat" x-show="taxMode !== 'none'">
-          <div class="eyebrow">Oszczędność dzięki IKE</div>
+          <div class="eyebrow" x-text="t('ikeSaving')"></div>
           <div class="value small positive" x-text="money(result.ikeTaxSaved)"></div>
         </div>
       </div>
@@ -442,41 +464,46 @@
         <div class="tax" :style="`width: ${result.shares.tax}%`"></div>
       </div>
       <div class="legend">
-        <span style="--dot: var(--slate);">Wpłaty <span class="tag" x-text="percent(result.shares.contributed)"></span></span>
-        <span style="--dot: var(--olive);">Zysk netto <span class="tag" x-text="percent(result.shares.profit)"></span></span>
-        <span style="--dot: var(--clay);" x-show="anyTax">Podatek <span class="tag" x-text="percent(result.shares.tax)"></span></span>
+        <span style="--dot: var(--slate);"><span x-text="t('contributions')"></span> <span class="tag" x-text="percent(result.shares.contributed)"></span></span>
+        <span style="--dot: var(--olive);"><span x-text="t('netProfit')"></span> <span class="tag" x-text="percent(result.shares.profit)"></span></span>
+        <span style="--dot: var(--clay);" x-show="anyTax"><span x-text="t('tax')"></span> <span class="tag" x-text="percent(result.shares.tax)"></span></span>
       </div>
 
       <p x-show="anyTax" style="margin-top: 20px; color: var(--gray-500);">
-        <span x-show="anyIkeFlatTax">Z IKE pobierany jest ryczałt 10% od całej zgromadzonej kwoty, łącznie z wpłatami, w momencie wypłaty.</span>
-        <span x-show="taxMode === 'capitalization'">Podatek 19% jest pobierany z odsetek przy każdej kapitalizacji, więc pomniejszone odsetki procentują dalej.</span>
-        <span x-show="taxMode === 'end'">Podatek 19% jest liczony od całego zysku na rachunku maklerskim w momencie sprzedaży na koniec okresu.</span>
-        <span x-show="taxMode !== 'none'">Oszczędność dzięki IKE to różnica między saldem IKE a kwotą, którą te same wpłaty dałyby na rachunku maklerskim po podatku.</span>
+        <span x-show="anyIkeFlatTax" x-text="t('noteFlat')"></span>
+        <span x-show="taxMode === 'capitalization'" x-text="t('noteCap')"></span>
+        <span x-show="taxMode === 'end'" x-text="t('noteEnd')"></span>
+        <span x-show="taxMode !== 'none'" x-text="t('noteSaving')"></span>
       </p>
       <p x-show="inflationEnabled" style="margin-top: 12px; color: var(--gray-500);">
-        Wartość realna to saldo po podatku przeliczone na dzisiejszą siłę nabywczą przy inflacji <span x-text="percent(num(inflation))"></span> rocznie. Realna stopa zwrotu przed podatkiem wynosi <span x-text="percent(realRate(ike.rate))"></span> na IKE<span x-show="hasPartner">, <span x-text="percent(realRate(partner.rate))"></span> na IKE partnera</span> i <span x-text="percent(realRate(brokerage.rate))"></span> na rachunku maklerskim.
+        <span x-text="t('noteReal', { inflation: percent(num(inflation)) })"></span>
+        <span x-text="t('realRates', {
+          ike: percent(realRate(ike.rate)),
+          partner: hasPartner ? t('realRatePartner', { rate: percent(realRate(partner.rate)) }) : '',
+          brokerage: percent(realRate(brokerage.rate))
+        })"></span>
       </p>
     </div>
   </section>
 
   <section style="padding: 40px 32px 96px;">
     <div style="max-width: 860px; margin: 0 auto;">
-      <h2 style="margin-bottom: 6px;">Rok po roku</h2>
-      <p class="hint" style="margin-bottom: 18px;" x-show="taxMode === 'end'">Przy podatku na końcu kolumny pokazują wartość, gdybyś sprzedał wszystko w danym roku.</p>
+      <h2 style="margin-bottom: 6px;" x-text="t('yearByYear')"></h2>
+      <p class="hint" style="margin-bottom: 18px;" x-show="taxMode === 'end'" x-text="t('endHint')"></p>
       <div class="table-wrap">
         <table class="spec">
           <thead>
             <tr>
-              <th>Rok</th>
-              <th>Wpłacono</th>
-              <th x-show="anyIkeMax">Wpłata IKE</th>
-              <th>IKE</th>
-              <th x-show="hasPartner">IKE partnera</th>
-              <th>Maklerskie</th>
-              <th x-show="anyTax">Podatek</th>
-              <th>Zysk netto</th>
-              <th>Saldo</th>
-              <th x-show="inflationEnabled">Saldo realne</th>
+              <th x-text="t('year')"></th>
+              <th x-text="t('contributed')"></th>
+              <th x-show="anyIkeMax" x-text="t('ikeContribution')"></th>
+              <th x-text="t('ike')"></th>
+              <th x-show="hasPartner" x-text="t('partnerIke')"></th>
+              <th x-text="t('brokerageShort')"></th>
+              <th x-show="anyTax" x-text="t('tax')"></th>
+              <th x-text="t('netProfit')"></th>
+              <th x-text="t('balance')"></th>
+              <th x-show="inflationEnabled" x-text="t('realBalance')"></th>
             </tr>
           </thead>
           <tbody>
@@ -513,11 +540,173 @@
     const IKE_LIMIT = IKE_LIMITS[IKE_LIMIT_YEAR];
     const IKE_LIMIT_GROWTH = (Math.pow(IKE_LIMIT / IKE_LIMITS[IKE_HISTORY_FROM], 1 / (IKE_LIMIT_YEAR - IKE_HISTORY_FROM)) - 1) * 100;
 
-    const moneyFormat = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 });
-    const percentFormat = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 });
+    const LANGUAGES = ['pl', 'en'];
+
+    const TRANSLATIONS = {
+      pl: {
+        pageTitle: 'Kalkulator procentu składanego',
+        eyebrow: 'Inwestycje',
+        title: 'Kalkulator procentu składanego',
+        intro: 'Sprawdź, ile urośnie Twój kapitał na IKE i rachunku maklerskim przy regularnych dopłatach. Dopłaty trafiają na konto na początku każdego miesiąca. Możesz uwzględnić podatek Belki oraz inflację, żeby zobaczyć wynik w dzisiejszych złotówkach.',
+        parameters: 'Parametry',
+        ike: 'IKE',
+        partnerIke: 'IKE partnera',
+        brokerage: 'Rachunek maklerski',
+        ikeHintFlat: 'Ryczałt 10% od całej kwoty przy wypłacie',
+        ikeHintFree: 'Bez podatku Belki przy wypłacie po 60. roku życia',
+        initial: 'Saldo początkowe (zł)',
+        monthly: 'Dopłata miesięczna (zł)',
+        rate: 'Roczna stopa zwrotu (%)',
+        effective: 'Efektywnie {rate} rocznie',
+        flatTax: 'Ryczałt 10% od całej zgromadzonej kwoty przy wypłacie',
+        maxLimit: 'Wpłacaj co roku pełny limit ({limit} w {year})',
+        overLimit: 'Roczne dopłaty ({amount}) przekraczają limit IKE na {year} rok: {limit}.',
+        limitGrowth: 'Roczny wzrost limitu (%)',
+        limitGrowthHint: 'Historycznie średnio {rate} rocznie ({from}-{to})',
+        limitHistory: 'Historia limitów IKE',
+        year: 'Rok',
+        limit: 'Limit',
+        change: 'Zmiana',
+        brokerageHint: 'Zysk opodatkowany podatkiem Belki (19%)',
+        belka: 'Podatek Belki',
+        taxNone: 'Nie uwzględniaj',
+        taxCap: 'Przy każdej kapitalizacji',
+        taxCapHint: 'lokaty, obligacje, konta oszczędnościowe',
+        taxEnd: 'Na końcu, przy sprzedaży',
+        taxEndHint: 'fundusze, akcje, ETF',
+        shared: 'Wspólne parametry',
+        years: 'Horyzont (lata)',
+        compounding: 'Kapitalizacja',
+        daily: 'Dzienna',
+        monthlyPeriod: 'Miesięczna',
+        quarterly: 'Kwartalna',
+        semiannual: 'Półroczna',
+        annual: 'Roczna',
+        inflation: 'Roczna inflacja (%)',
+        inflationEnabled: 'Uwzględnij inflację',
+        indexContributions: 'Indeksuj dopłaty o inflację co rok',
+        resultAfter: 'Wynik po {years}',
+        balanceAfterTax: 'Saldo po podatku',
+        finalBalance: 'Saldo końcowe',
+        contributedTotal: 'Wpłacono łącznie',
+        netProfit: 'Zysk netto',
+        tax: 'Podatek',
+        realValue: 'Wartość realna',
+        ikeAfterTax: 'IKE po podatku',
+        partnerIkeAfterTax: 'IKE partnera po podatku',
+        brokerageAfterTax: 'Maklerski po podatku',
+        ikeSaving: 'Oszczędność dzięki IKE',
+        contributions: 'Wpłaty',
+        noteFlat: 'Z IKE pobierany jest ryczałt 10% od całej zgromadzonej kwoty, łącznie z wpłatami, w momencie wypłaty.',
+        noteCap: 'Podatek 19% jest pobierany z odsetek przy każdej kapitalizacji, więc pomniejszone odsetki procentują dalej.',
+        noteEnd: 'Podatek 19% jest liczony od całego zysku na rachunku maklerskim w momencie sprzedaży na koniec okresu.',
+        noteSaving: 'Oszczędność dzięki IKE to różnica między saldem IKE a kwotą, którą te same wpłaty dałyby na rachunku maklerskim po podatku.',
+        noteReal: 'Wartość realna to saldo po podatku przeliczone na dzisiejszą siłę nabywczą przy inflacji {inflation} rocznie.',
+        realRates: 'Realna stopa zwrotu przed podatkiem wynosi {ike} na IKE{partner} i {brokerage} na rachunku maklerskim.',
+        realRatePartner: ', {rate} na IKE partnera',
+        yearByYear: 'Rok po roku',
+        endHint: 'Przy podatku na końcu kolumny pokazują wartość, gdybyś sprzedał wszystko w danym roku.',
+        contributed: 'Wpłacono',
+        ikeContribution: 'Wpłata IKE',
+        brokerageShort: 'Maklerskie',
+        balance: 'Saldo',
+        realBalance: 'Saldo realne',
+        yearsOne: '1 roku',
+        yearsMany: '{n} latach'
+      },
+      en: {
+        pageTitle: 'Compound interest calculator',
+        eyebrow: 'Investments',
+        title: 'Compound interest calculator',
+        intro: 'See how much your savings grow on IKE and a brokerage account with regular contributions. Contributions are added at the start of each month. You can include Belka tax and inflation to see the result in today\'s money.',
+        parameters: 'Parameters',
+        ike: 'IKE',
+        partnerIke: 'Partner\'s IKE',
+        brokerage: 'Brokerage account',
+        ikeHintFlat: '10% flat tax on the whole amount at withdrawal',
+        ikeHintFree: 'No Belka tax when withdrawn after age 60',
+        initial: 'Starting balance (PLN)',
+        monthly: 'Monthly contribution (PLN)',
+        rate: 'Annual rate of return (%)',
+        effective: 'Effectively {rate} per year',
+        flatTax: '10% flat tax on the whole accumulated amount at withdrawal',
+        maxLimit: 'Pay in the full limit every year ({limit} in {year})',
+        overLimit: 'Yearly contributions ({amount}) exceed the IKE limit for {year}: {limit}.',
+        limitGrowth: 'Annual limit growth (%)',
+        limitGrowthHint: 'Historical average {rate} per year ({from}-{to})',
+        limitHistory: 'IKE limit history',
+        year: 'Year',
+        limit: 'Limit',
+        change: 'Change',
+        brokerageHint: 'Gains subject to Belka tax (19%)',
+        belka: 'Belka tax',
+        taxNone: 'Ignore',
+        taxCap: 'At each compounding',
+        taxCapHint: 'deposits, bonds, savings accounts',
+        taxEnd: 'At the end, on sale',
+        taxEndHint: 'funds, stocks, ETFs',
+        shared: 'Shared parameters',
+        years: 'Horizon (years)',
+        compounding: 'Compounding',
+        daily: 'Daily',
+        monthlyPeriod: 'Monthly',
+        quarterly: 'Quarterly',
+        semiannual: 'Semi-annual',
+        annual: 'Annual',
+        inflation: 'Annual inflation (%)',
+        inflationEnabled: 'Include inflation',
+        indexContributions: 'Raise contributions by inflation every year',
+        resultAfter: 'Result after {years}',
+        balanceAfterTax: 'Balance after tax',
+        finalBalance: 'Final balance',
+        contributedTotal: 'Total contributed',
+        netProfit: 'Net profit',
+        tax: 'Tax',
+        realValue: 'Real value',
+        ikeAfterTax: 'IKE after tax',
+        partnerIkeAfterTax: 'Partner\'s IKE after tax',
+        brokerageAfterTax: 'Brokerage after tax',
+        ikeSaving: 'Saved thanks to IKE',
+        contributions: 'Contributions',
+        noteFlat: 'A 10% flat tax is taken from IKE on the whole accumulated amount, contributions included, at withdrawal.',
+        noteCap: 'The 19% tax is taken from interest at each compounding, so only the reduced interest keeps compounding.',
+        noteEnd: 'The 19% tax is charged on the whole gain on the brokerage account when you sell at the end of the period.',
+        noteSaving: 'Saved thanks to IKE is the difference between the IKE balance and what the same contributions would give on a brokerage account after tax.',
+        noteReal: 'Real value is the after-tax balance in today\'s purchasing power at {inflation} annual inflation.',
+        realRates: 'The real rate of return before tax is {ike} on IKE{partner} and {brokerage} on the brokerage account.',
+        realRatePartner: ', {rate} on the partner\'s IKE',
+        yearByYear: 'Year by year',
+        endHint: 'With tax at the end, the columns show the value if you sold everything in that year.',
+        contributed: 'Contributed',
+        ikeContribution: 'IKE contribution',
+        brokerageShort: 'Brokerage',
+        balance: 'Balance',
+        realBalance: 'Real balance',
+        yearsOne: '1 year',
+        yearsMany: '{n} years'
+      }
+    };
+
+    const LOCALES = { pl: 'pl-PL', en: 'en-GB' };
+
+    function detectLanguage() {
+      const saved = localStorage.getItem('lang');
+      if (LANGUAGES.includes(saved)) return saved;
+      const preferred = (navigator.languages ?? [navigator.language]).map(code => code.slice(0, 2).toLowerCase());
+      return preferred.find(code => LANGUAGES.includes(code)) ?? 'en';
+    }
+
+    const formatters = Object.fromEntries(LANGUAGES.map(code => [code, {
+      money: new Intl.NumberFormat(LOCALES[code], { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }),
+      percent: new Intl.NumberFormat(LOCALES[code], { maximumFractionDigits: 2 })
+    }]));
 
     function num(value) {
-      const parsed = typeof value === 'number' ? value : Number(String(value).replace(/\s/g, '').replace(',', '.'));
+      if (typeof value === 'number') return value;
+      let text = String(value).replace(/\s/g, '');
+      // "1,234.5" uses the comma as a thousands separator, "8,2" as the decimal one
+      text = text.includes('.') ? text.replace(/,/g, '') : text.replace(',', '.');
+      const parsed = Number(text);
       return Number.isFinite(parsed) ? parsed : 0;
     }
 
@@ -628,8 +817,10 @@
           limit: IKE_LIMITS[year],
           change: i === 0 ? null : (IKE_LIMITS[year] / IKE_LIMITS[IKE_HISTORY_YEARS[i - 1]] - 1) * 100
         })).reverse(),
-        ike: { id: 'ike', title: 'IKE', initial: 0, monthly: 2000, rate: 7, max: false, flatTax: false },
-        partner: { id: 'partner-ike', title: 'IKE partnera', initial: 0, monthly: 0, rate: 7, max: false, flatTax: false },
+        LANGUAGES,
+        lang: detectLanguage(),
+        ike: { id: 'ike', titleKey: 'ike', initial: 0, monthly: 2000, rate: 7, max: false, flatTax: false },
+        partner: { id: 'partner-ike', titleKey: 'partnerIke', initial: 0, monthly: 0, rate: 7, max: false, flatTax: false },
         brokerage: { initial: 10000, monthly: 500, rate: 7 },
         periods: 1,
         years: 20,
@@ -639,11 +830,11 @@
         indexContributions: false,
 
         compoundingOptions: [
-          { periods: 365, label: 'Dzienna' },
-          { periods: 12, label: 'Miesięczna' },
-          { periods: 4, label: 'Kwartalna' },
-          { periods: 2, label: 'Półroczna' },
-          { periods: 1, label: 'Roczna' }
+          { periods: 365, labelKey: 'daily' },
+          { periods: 12, labelKey: 'monthlyPeriod' },
+          { periods: 4, labelKey: 'quarterly' },
+          { periods: 2, labelKey: 'semiannual' },
+          { periods: 1, labelKey: 'annual' }
         ],
 
         num,
@@ -699,17 +890,27 @@
           return (nominal / inflation - 1) * 100;
         },
 
+        t(key, params = {}) {
+          const template = TRANSLATIONS[this.lang][key] ?? key;
+          return template.replace(/\{(\w+)\}/g, (match, name) => params[name] ?? '');
+        },
+
+        applyLang(lang) {
+          localStorage.setItem('lang', lang);
+          document.documentElement.lang = lang;
+          document.title = this.t('pageTitle');
+        },
+
         money(value) {
-          return moneyFormat.format(value);
+          return formatters[this.lang].money.format(value);
         },
 
         percent(value) {
-          return percentFormat.format(value) + '%';
+          return formatters[this.lang].percent.format(value) + '%';
         },
 
         yearsLabel(n) {
-          if (n === 1) return '1 roku';
-          return `${n} latach`;
+          return n === 1 ? this.t('yearsOne') : this.t('yearsMany', { n });
         }
       };
     }

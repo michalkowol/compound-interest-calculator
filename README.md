@@ -1,5 +1,9 @@
-# Kalkulator procentu składanego
+# Compound Interest Calculator
 
-Kalkulator inwestycji na IKE, IKE partnera i rachunku maklerskim z podatkiem Belki, inflacją i limitami IKE.
+A compound interest calculator for IKE, a partner's IKE and a brokerage account, with Belka tax, inflation and IKE limits. Available in Polish and English.
 
-Otwórz `index.html` w przeglądarce. Nie wymaga instalacji ani budowania (Alpine.js ładowany z CDN).
+Open `index.html` in a browser. No install or build step needed (Alpine.js is loaded from a CDN).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
